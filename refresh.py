@@ -15,10 +15,11 @@ from login import client_id, client_secret, user_agent
 import subreddits
 import praw
 from curses import wrapper
+from os import path
 
 def main():
     """Provide the program's entry point when directly executed."""
-
+    mode = 'r+' if path.exists("userdata.txt") else 'w+'
     with open("userdata.txt", 'r+') as f:
         if len(f.read()) == 0:
             user_data = login.main()
@@ -34,6 +35,7 @@ def main():
                 refresh_token=refresh_token,
                 user_agent=user_agent,
             )
+        return reddit
 
     # my_subreddits = subreddits.generate_user_subreddits(reddit)
     # x = input("Press [1] to view subreddits: ")
