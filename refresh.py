@@ -14,7 +14,7 @@ import login
 from login import client_id, client_secret, user_agent
 import subreddits
 import praw
-
+from curses import wrapper
 
 def main():
     """Provide the program's entry point when directly executed."""
@@ -28,7 +28,6 @@ def main():
         else:
             f.seek(0)
             refresh_token = f.readline()
-            print(refresh_token)
             reddit = praw.Reddit(
                 client_id=client_id,
                 client_secret=client_secret,
@@ -36,13 +35,13 @@ def main():
                 user_agent=user_agent,
             )
 
-    my_subreddits = subreddits.generate_user_subreddits(reddit)
-    x = input("Press [1] to view subreddits: ")
-    if x == "1":
-        my_subreddits = subreddits.generate_user_subreddits(reddit)
-        print(my_subreddits)
-    return 0
+    # my_subreddits = subreddits.generate_user_subreddits(reddit)
+    # x = input("Press [1] to view subreddits: ")
+    # if x == "1":
+    #     my_subreddits = subreddits.generate_user_subreddits(reddit)
+    #     print(my_subreddits)
+    # return 0
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    main()
