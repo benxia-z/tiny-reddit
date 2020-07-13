@@ -14,13 +14,14 @@ import login
 from login import client_id, client_secret, user_agent
 import subreddits
 import praw
-from curses import wrapper
 from os import path
+
 
 def main():
     """Provide the program's entry point when directly executed."""
     mode = 'r+' if path.exists("userdata.txt") else 'w+'
-    with open("userdata.txt", 'r+') as f:
+    with open("userdata.txt", mode) as f:
+
         if len(f.read()) == 0:
             user_data = login.main()
             refresh_token = user_data["refresh_token"]
@@ -46,4 +47,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    print(main())
