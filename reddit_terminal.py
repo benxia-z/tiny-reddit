@@ -7,11 +7,10 @@ import refresh
 import utils
 import urwid
 
-
 class AuthBox(urwid.Edit):
 
     def __init__(self, markup):
-        urwid.Edit.__init__(self, caption=markup, align='center')
+        super().__init__(caption=markup, align='center')
 
     def keypress(self, size, key):
         if key == 'a':
@@ -29,18 +28,55 @@ class AuthBox(urwid.Edit):
         urwid.emit_signal(self, 'authenticated', r)
 
 
-class MainView(urwid.WidgetWrap):
+class MainView:
     body = []
+    reddit_instance = None
 
-    def __init__(self, title_markup):
-        body = [super().__init__(urwid.Text(title_markup)), urwid.Divider()]
+    def generate_header(self, title_markup, header):
+        self.body = [urwid.Text(title_markup), urwid.Divider(), header, urwid.Divider()]
 
-    def build_front_page(self, r):
-        front_page = utils.get_front_page(r)
+    def retrieve_reddit_instance(self, r):
+        self.reddit_instance = r
+        self.build_front_page(self.reddit_instance)
+
+    def build_front_page(self, r, title_markup='', header=[]):
+        front_page = utils.get_front_page_posts(r)
         for p in front_page:
             post = urwid.Button(p.title)
             self.body.append(urwid.AttrMap(post, None, focus_map='reversed'))
-        loop.widget = urwid.ListBox(urwid.SimpleFocusListWalker(self.body))
+        loop.widget = urwid.Frame(urwid.ListBox(urwid.SimpleFocusListWalker(self.body)), footer=map2)
+
+    def refresh_front_page(self, tab_button, tab_name='best'):
+        front_page = utils.get_front_page_posts(self.reddit_instance, tab_name)
+        self.body = []
+        self.generate_header('Front Page', front_header)
+        for p in front_page:
+            post = urwid.Button(p.title)
+            self.body.append(urwid.AttrMap(post, None, focus_map='reversed'))
+        loop.widget = urwid.Frame(urwid.ListBox(urwid.SimpleFocusListWalker(self.body)), footer=map2)
+
+
+
+class TabMenu(urwid.Columns):
+    def __init__(self):
+        super().__init__([], dividechars=1)
+
+    def generate_tabs(self, tabs):
+        for tab in tabs:
+            tab = SubredditTab(tab)
+            self.contents.append((urwid.AttrMap(tab, None, focus_map='reversed'), self.options()))
+
+
+class SubredditTab(urwid.Button):
+    def __init__(self, tab_name):
+        super().__init__(tab_name)
+        urwid.connect_signal(self, 'click', main_view.refresh_front_page, tab_name)
+
+
+class Header(urwid.Columns):
+    def __init__(self, header_widgets):
+        super().__init__(header_widgets)
+
 
 def unhandled_input(key):
     if key in ('q', 'Q'):
@@ -53,25 +89,36 @@ def unhandled_input(key):
 
 
 if __name__ == "__main__":
-    reddit = None
-
     palette = [
         ('login_banner', 'dark red', 'black'),
         ('main_footer', 'black', 'light gray'),
         ('bg', 'white', 'black'),
     ]
+
+    # registering custom authentication signals
     auth_signals = ['authenticated']
 
     urwid.register_signal(AuthBox, auth_signals)
 
+    # auth page widget
     login_prompt = AuthBox(('login_banner', u"Press 'a' to log in to Reddit"))
     footer = urwid.Text(('main_footer', u"[q] Quit | STATUS BAR"))
-    main_view = MainView('Front Page')
 
+    # front page view created here
+    main_view = MainView()
+    front_tabs = TabMenu()
+    front_tabs.generate_tabs(['best', 'hot', 'new', 'contrv.', 'top'])
+    print(front_tabs)
+    front_header = Header([front_tabs])
+    main_view.generate_header('Front Page', front_header)
+
+    # auth page display
     fill = urwid.Filler(login_prompt)
     map1 = urwid.AttrMap(fill, 'bg')
     map2 = urwid.AttrMap(footer, 'main_footer')
     frame = urwid.Frame(map1, footer=map2)
-    urwid.connect_signal(login_prompt, 'authenticated', main_view.build_front_page)
+
+    # connecting authentication signal
+    urwid.connect_signal(login_prompt, 'authenticated', main_view.retrieve_reddit_instance)
     loop = urwid.MainLoop(frame, palette, unhandled_input=unhandled_input)
     loop.run()
