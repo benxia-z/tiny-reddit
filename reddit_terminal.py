@@ -30,6 +30,7 @@ class AuthBox(urwid.Edit):
 
 class MainView:
     body = []
+    post_content = None
     reddit_instance = None
 
     def generate_header(self, title_markup, header):
@@ -41,19 +42,20 @@ class MainView:
 
     def build_front_page(self, r, title_markup='', header=[]):
         front_page = utils.get_front_page_posts(r)
-        for p in front_page:
+        self.update_posts(front_page)
+
+    def update_posts(self, page):
+        for p in page:
             post = urwid.Button(p.title)
             self.body.append(urwid.AttrMap(post, None, focus_map='reversed'))
-        loop.widget = urwid.Frame(urwid.ListBox(urwid.SimpleFocusListWalker(self.body)), footer=map2)
+        self.post_content = urwid.ListBox(urwid.SimpleFocusListWalker(self.body))
+        loop.widget = urwid.Frame(self.post_content, footer=map2)
 
     def refresh_front_page(self, tab_button, tab_name='best'):
         front_page = utils.get_front_page_posts(self.reddit_instance, tab_name)
         self.body = []
         self.generate_header('Front Page', front_header)
-        for p in front_page:
-            post = urwid.Button(p.title)
-            self.body.append(urwid.AttrMap(post, None, focus_map='reversed'))
-        loop.widget = urwid.Frame(urwid.ListBox(urwid.SimpleFocusListWalker(self.body)), footer=map2)
+        self.update_posts(front_page)
 
 
 
