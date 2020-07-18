@@ -1,3 +1,4 @@
+import os
 import random
 import socket
 import sys
@@ -9,10 +10,10 @@ client_id = "9jNQxoJqfiPogA"
 client_secret = None
 user_agent = "windows/osx/linux:redditterminalclient:v1.0.0 (by /u/Soopzoup and /u/KosherCow)"
 
+
 def receive_connection():
     """Wait for and then return a connected socket
     Opens a TCP connection on port 8080, and waits for a single client.
-
     """
     server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -28,15 +29,15 @@ def send_message(client, message):
     client.send("HTTP/1.1 200 OK\r\n\r\n{}".format(message).encode("utf-8"))
     client.close()
 
-def main():
 
-    commaScopes = "all"
+def authenticate():
+    comma_scopes = "all"
     redirect_uri = "http://localhost:8080"
 
-    if commaScopes.lower() == "all":
+    if comma_scopes.lower() == "all":
         scopes = ["*"]
     else:
-        scopes = commaScopes.strip().split(",")
+        scopes = comma_scopes.strip().split(",")
 
     reddit = praw.Reddit(
         client_id=client_id.strip(),
@@ -74,5 +75,33 @@ def main():
 
     return user_data
 
+
+def get_reddit_instance(read_only=True):
+    """Obtains reddit instance using refresh token."""
+    # TODO: Using the pickle package might be easier here
+    mode = 'r+' if os.path.exists("userdata.txt") else 'w+'
+    reddit = praw.Reddit(
+        client_id=client_id,
+        client_secret=client_secret,
+        user_agent=user_agent,
+    )
+    if not read_only:
+        with open("userdata.txt", mode) as f:
+            if len(f.read()) == 0:
+                user_data = authenticate()
+                refresh_token = user_data["refresh_token"]
+                reddit = user_data["reddit"]
+                f.write(refresh_token)
+            else:
+                f.seek(0)
+                refresh_token = f.readline()
+                reddit = praw.Reddit(
+                    client_id=client_id,
+                    client_secret=client_secret,
+                    refresh_token=refresh_token,
+                    user_agent=user_agent,
+                )
+    return reddit
+
 if __name__ == '__main__':
-    main()
+    authenticate()
