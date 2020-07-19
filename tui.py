@@ -1,8 +1,5 @@
 import urwid
 
-import utils
-
-
 class AuthBox(urwid.Edit):
     def __init__(self, markup):
         super().__init__(caption=markup, align='center')
@@ -19,7 +16,7 @@ class View(urwid.WidgetWrap):
         self.footer = None
         self.tab_menu = None
         self.body = []
-        self.tab_list = ['hot', 'new', 'contrv.', 'top']
+        self.tab_list = ['hot', 'new', 'controversial', 'top']
         # registering custom authentication signals
         self.auth_signals = ['authenticated']
         super().__init__(self.main_window())
@@ -51,7 +48,8 @@ class View(urwid.WidgetWrap):
         for tab_name in self.tab_list:
             tab = urwid.Button(tab_name)
             urwid.connect_signal(tab, 'click', self.refresh_front_page, tab_name)
-            self.tab_menu.contents.append((urwid.AttrMap(tab, None, focus_map='reversed'), self.tab_menu.options()))
+            self.tab_menu.contents.append((urwid.AttrMap(tab, None, focus_map='reversed'),
+                                           self.tab_menu.options(width_type=urwid.GIVEN, width_amount=len(tab_name)+4)))
         # TODO: change to function that allows multiple arguments
         self.header = urwid.Columns([self.tab_menu])
         self.generate_header('Front Page', self.header)
