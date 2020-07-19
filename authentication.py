@@ -8,7 +8,7 @@ import praw
 
 client_id = "9jNQxoJqfiPogA"
 client_secret = None
-user_agent = "windows/osx/linux:redditterminalclient:v1.0.0 (by /u/Soopzoup and /u/KosherCow)"
+user_agent = "windows/osx/linux:redditterminalclient:v0.1.0 (by /u/Soopzoup and /u/KosherCow)"
 
 
 def receive_connection():

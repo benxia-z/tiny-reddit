@@ -1,8 +1,5 @@
 import urwid
 
-import utils
-
-
 class AuthBox(urwid.Edit):
     def __init__(self, markup):
         super().__init__(caption=markup, align='center')
@@ -19,7 +16,7 @@ class View(urwid.WidgetWrap):
         self.footer = None
         self.tab_menu = None
         self.body = []
-        self.tab_list = ['hot', 'new', 'contrv.', 'top']
+        self.tab_list = ['hot', 'new', 'controversial', 'top']
         # registering custom authentication signals
         self.auth_signals = ['authenticated']
         super().__init__(self.main_window())
@@ -33,7 +30,8 @@ class View(urwid.WidgetWrap):
 
     def update_posts(self, page, redraw_screen=False):
         for p in page:
-            post = urwid.Button(p.title)
+            post = FixedButton(p.title + '\n' + 'submitted x hours ago by {} to {}'.format(p.author.name, p.subreddit) +
+                               '\n' + '{} comments'.format(p.num_comments) + '\n')
             self.body.append(urwid.AttrMap(post, None, focus_map='reversed'))
         self.post_content = urwid.ListBox(urwid.SimpleFocusListWalker(self.body))
         self.frame = urwid.Frame(self.post_content, footer=self.footer)
@@ -49,13 +47,14 @@ class View(urwid.WidgetWrap):
     def main_window(self):
         self.tab_menu = urwid.Columns([], dividechars=1)
         for tab_name in self.tab_list:
-            tab = urwid.Button(tab_name)
+            tab = FixedButton(tab_name)
             urwid.connect_signal(tab, 'click', self.refresh_front_page, tab_name)
-            self.tab_menu.contents.append((urwid.AttrMap(tab, None, focus_map='reversed'), self.tab_menu.options()))
+            self.tab_menu.contents.append((urwid.AttrMap(tab, None, focus_map='reversed'),
+                                           self.tab_menu.options(width_type=urwid.GIVEN, width_amount=len(tab_name)+4)))
         # TODO: change to function that allows multiple arguments
         self.header = urwid.Columns([self.tab_menu])
         self.generate_header('Front Page', self.header)
-        self.footer = urwid.Text(('main_footer', u"[q] Quit | [a] login"))
+        self.footer = urwid.Text(('main_footer', u"[q] Quit | [a] Login"))
         map2 = urwid.AttrMap(self.footer, 'main_footer')
         self.build_front_page()
         self.frame = urwid.Frame(self.post_content, footer=map2)
@@ -83,22 +82,28 @@ class View(urwid.WidgetWrap):
             raise urwid.ExitMainLoop()
 
 
-# class TabMenu(urwid.Columns):
-#     def __init__(self):
-#         super().__init__([], dividechars=1)
-#
-#     def generate_tabs(self, tabs):
-#         for tab in tabs:
-#             tab = SubredditTab(tab)
-#             self.contents.append((urwid.AttrMap(tab, None, focus_map='reversed'), self.options()))
-#
-#
-# class SubredditTab(urwid.Button):
-#     def __init__(self, tab_name):
-#         super().__init__(tab_name)
-#         urwid.connect_signal(self, 'click', main_view.refresh_front_page, tab_name)
-#
-#
-# class Header(urwid.Columns):
-#     def __init__(self, header_widgets):
-#         super().__init__(header_widgets)
+class FixedLabel(urwid.SelectableIcon):
+    # The terminal cursor normally appears in buttons, this removes the cursor
+    def __init__(self, text):
+        curs_pos = len(text) + 1
+        urwid.SelectableIcon.__init__(self, text, cursor_position=curs_pos)
+
+
+class FixedButton(urwid.WidgetWrap):
+    # Implementing fixed button label
+    _selectable = True
+    signals = ['click']
+
+    def __init__(self, label):
+        self.label = FixedLabel(label)
+        display_widget = self.label
+        urwid.WidgetWrap.__init__(self, urwid.AttrMap(display_widget, None, focus_map='reversed'))
+
+    def keypress(self, size, key):
+        if self._command_map[key] != urwid.ACTIVATE:
+            return key
+
+        self._emit('click')
+
+    def set_label(self, new_label):
+        self.label.set_text(str(new_label))
