@@ -37,10 +37,9 @@ class Controller:
             ('login_banner', 'dark red', 'black'),
             ('main_footer', 'black', 'light gray'),
             ('bg', 'white', 'black'),
+            ('reversed', 'standout', '')
         ]
 
-        # auth page widget
-        # footer = urwid.Text(('main_footer', u"[q] Quit | [a] Login |"))
         self.loop = urwid.MainLoop(self.view, palette, unhandled_input=self.view.unhandled_input)
         self.loop.run()
 if __name__ == "__main__":
