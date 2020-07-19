@@ -80,12 +80,13 @@ def get_reddit_instance(read_only=True):
     """Obtains reddit instance using refresh token."""
     # TODO: Using the pickle package might be easier here
     mode = 'r+' if os.path.exists("userdata.txt") else 'w+'
-    reddit = praw.Reddit(
-        client_id=client_id,
-        client_secret=client_secret,
-        user_agent=user_agent,
-    )
-    if not read_only:
+    if read_only:
+        reddit = praw.Reddit(
+            client_id=client_id,
+            client_secret=client_secret,
+            user_agent=user_agent,
+        )
+    else:
         with open("userdata.txt", mode) as f:
             if len(f.read()) == 0:
                 user_data = authenticate()

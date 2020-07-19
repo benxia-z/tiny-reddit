@@ -17,6 +17,7 @@ class Controller:
 
     def login(self):
         self.reddit_instance = get_reddit_instance(read_only=False)
+        self.model.reddit_instance = self.reddit_instance
 
     def redraw_screen(self, w):
         self.loop.widget = w
