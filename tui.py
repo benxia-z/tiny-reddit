@@ -1,9 +1,5 @@
 import urwid
 
-class AuthBox(urwid.Edit):
-    def __init__(self, markup):
-        super().__init__(caption=markup, align='center')
-
 
 class View(urwid.WidgetWrap):
 
@@ -15,14 +11,14 @@ class View(urwid.WidgetWrap):
         self.frame = None
         self.footer = None
         self.tab_menu = None
-        self.body = []
-        self.tab_list = ['hot', 'new', 'controversial', 'top']
+        self.body_content = []
+        self.tab_list = ['hot', 'new', 'rising', 'controversial', 'top']
         # registering custom authentication signals
         self.auth_signals = ['authenticated']
         super().__init__(self.main_window())
 
-    def generate_header(self, title_markup, header):
-        self.body = [urwid.Text(title_markup), urwid.Divider(), header, urwid.Divider()]
+    def generate_header(self):
+        self.body_content += self.header.header_content
 
     def build_front_page(self):
         front_page = self.model.get_front_page_posts()
@@ -30,30 +26,25 @@ class View(urwid.WidgetWrap):
 
     def update_posts(self, page, redraw_screen=False):
         for p in page:
-            post = FixedButton(p.title + '\n' + 'submitted x hours ago by {} to {}'.format(p.author.name, p.subreddit) +
-                               '\n' + '{} comments'.format(p.num_comments) + '\n')
+            # TODO: calculate time since post creation
+            post = FixedButton(p.title + '\n' + 'submitted x hours ago by {} to r/{}'.format(p.author.name, p.subreddit)
+                               + '\n' + '{} comments'.format(p.num_comments) + '\n')
             self.body.append(urwid.AttrMap(post, None, focus_map='reversed'))
-        self.post_content = urwid.ListBox(urwid.SimpleFocusListWalker(self.body))
+        self.post_content = urwid.ListBox(urwid.SimpleFocusListWalker(self.body_content))
         self.frame = urwid.Frame(self.post_content, footer=self.footer)
         if not redraw_screen:
             self.controller.redraw_screen(self.frame)
 
     def refresh_front_page(self, tab_button, tab_name='hot', redraw_screen=False):
+        self.body_content = []
+        self.header.generate_tabs()
         front_page = self.model.get_front_page_posts(tab_name)
-        self.body = []
-        self.generate_header('Front Page', self.header)
+        self.generate_header()
         self.update_posts(front_page, redraw_screen)
 
     def main_window(self):
-        self.tab_menu = urwid.Columns([], dividechars=1)
-        for tab_name in self.tab_list:
-            tab = FixedButton(tab_name)
-            urwid.connect_signal(tab, 'click', self.refresh_front_page, tab_name)
-            self.tab_menu.contents.append((urwid.AttrMap(tab, None, focus_map='reversed'),
-                                           self.tab_menu.options(width_type=urwid.GIVEN, width_amount=len(tab_name)+4)))
-        # TODO: change to function that allows multiple arguments
-        self.header = urwid.Columns([self.tab_menu])
-        self.generate_header('Front Page', self.header)
+        self.header = Header(self, 'Front Page', self.tab_list)
+        self.generate_header()
         self.footer = urwid.Text(('main_footer', u"[q] Quit | [a] Login"))
         map2 = urwid.AttrMap(self.footer, 'main_footer')
         self.build_front_page()
@@ -64,12 +55,12 @@ class View(urwid.WidgetWrap):
     def keypress(self, size, key):
         if key == 'a':
             self.controller.login()
-            self.refresh_front_page('d', redraw_screen=False)
+            self.refresh_front_page(None, redraw_screen=False)
         if key == 'b':
             urwid.emit_signal(self, 'authenticated')
             return
         if key == 'c':
-            return urwid.Filler(urwid.Text('Test'))
+            return
         if key == 'q':
             raise urwid.ExitMainLoop()
         return super().keypress(size, key)
@@ -107,3 +98,25 @@ class FixedButton(urwid.WidgetWrap):
 
     def set_label(self, new_label):
         self.label.set_text(str(new_label))
+
+
+class Header:
+    # TODO: allow users to switch subreddits
+    def __init__(self, view, title_markup, tab_list):
+        self.view = view
+        self.tab_list = tab_list
+        self.sub_name = 'Front Page'
+        self.tab_content = None
+        self.generate_tabs()
+        self.tab_menu = urwid.Columns([self.tab_content])
+        self.header_content = [urwid.Text(title_markup), urwid.Divider(), self.tab_menu, urwid.Divider()]
+
+    def generate_tabs(self):
+        self.tab_content = urwid.Columns([], dividechars=1)
+        for tab_name in self.tab_list:
+            tab = FixedButton(tab_name)
+            urwid.connect_signal(tab, 'click', self.view.refresh_front_page, tab_name)
+            self.tab_content.contents.append((urwid.AttrMap(tab, None, focus_map='reversed'),
+                                              self.tab_content.options(width_type=urwid.GIVEN,
+                                              width_amount=len(tab_name)+4)))
+

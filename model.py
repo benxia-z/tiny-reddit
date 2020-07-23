@@ -16,6 +16,8 @@ class Model:
             return front_page.hot(limit=limit)
         elif sort == 'new':
             return front_page.new(limit=limit)
+        elif sort == 'rising':
+            return front_page.rising(limit=limit)
         elif sort == 'controversial':
             return front_page.controversial(limit=limit)
         elif sort == 'top':

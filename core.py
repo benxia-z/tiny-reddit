@@ -42,6 +42,7 @@ class Controller:
 
         self.loop = urwid.MainLoop(self.view, palette, unhandled_input=self.view.unhandled_input)
         self.loop.run()
+
 if __name__ == "__main__":
     controller = Controller()
     controller.main()
