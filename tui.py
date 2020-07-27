@@ -9,46 +9,49 @@ class View(urwid.WidgetWrap):
         self.post_content = None
         self.header = None
         self.frame = None
-        self.footer = None
+        self.sub_footer = urwid.AttrMap(urwid.Text(('main_footer', u"[q] Quit | [a] Login")), 'main_footer')
+        self.post_footer = urwid.AttrMap(urwid.Text(('post_footer',
+                                                     u'[q] Quit | '
+                                                     u'[c] Comment | '
+                                                     u'[b] Back')), 'main_footer')
         self.tab_menu = None
-        self.body_content = []
+        self.page_list = []
+        self.page_content = None
         self.tab_list = ['hot', 'new', 'rising', 'controversial', 'top']
         # registering custom authentication signals
         self.auth_signals = ['authenticated']
         super().__init__(self.main_window())
 
     def generate_header(self):
-        self.body_content += self.header.header_content
+        # currently appends the header to page content
+        self.page_list += self.header.header_content
 
     def build_front_page(self):
-        front_page = self.model.get_front_page_posts()
+        # creates a front page generator and assigns the loop widget to the frame
+        front_page = self.model.get_subreddit_posts()
         self.update_posts(front_page, redraw_screen=True)
 
-    def update_posts(self, page, redraw_screen=False):
-        for p in page:
-            # TODO: calculate time since post creation
-            post = FixedButton(p.title + '\n' + 'submitted x hours ago by {} to r/{}'.format(p.author.name, p.subreddit)
-                               + '\n' + '{} comments'.format(p.num_comments) + '\n')
-            self.body.append(urwid.AttrMap(post, None, focus_map='reversed'))
-        self.post_content = urwid.ListBox(urwid.SimpleFocusListWalker(self.body_content))
-        self.frame = urwid.Frame(self.post_content, footer=self.footer)
+    def update_posts(self, post_generator, redraw_screen=False):
+        # TODO: need to set post generator as a attribute so we can keep pages until refreshed
+        self.post_content = PostBody(self, post_generator).post_list
+        self.page_list = self.header.header_content + self.post_content
+        self.page_content = urwid.ListBox(urwid.SimpleFocusListWalker(self.page_list))
+        self.frame = urwid.Frame(self.page_content, footer=self.sub_footer)
         if not redraw_screen:
             self.controller.redraw_screen(self.frame)
 
     def refresh_front_page(self, tab_button, tab_name='hot', redraw_screen=False):
-        self.body_content = []
+        self.page_list = []
         self.header.generate_tabs()
-        front_page = self.model.get_front_page_posts(tab_name)
+        front_page = self.model.get_subreddit_posts(tab_name)
         self.generate_header()
         self.update_posts(front_page, redraw_screen)
 
     def main_window(self):
         self.header = Header(self, 'Front Page', self.tab_list)
         self.generate_header()
-        self.footer = urwid.Text(('main_footer', u"[q] Quit | [a] Login"))
-        map2 = urwid.AttrMap(self.footer, 'main_footer')
         self.build_front_page()
-        self.frame = urwid.Frame(self.post_content, footer=map2)
+        self.frame = urwid.Frame(self.page_content, footer=self.sub_footer)
         urwid.register_signal(self, self.auth_signals)
         return self.frame
 
@@ -88,7 +91,7 @@ class FixedButton(urwid.WidgetWrap):
     def __init__(self, label):
         self.label = FixedLabel(label)
         display_widget = self.label
-        urwid.WidgetWrap.__init__(self, urwid.AttrMap(display_widget, None, focus_map='reversed'))
+        super().__init__(urwid.AttrMap(display_widget, None, focus_map='reversed'))
 
     def keypress(self, size, key):
         if self._command_map[key] != urwid.ACTIVATE:
@@ -98,6 +101,61 @@ class FixedButton(urwid.WidgetWrap):
 
     def set_label(self, new_label):
         self.label.set_text(str(new_label))
+
+
+class Post(urwid.WidgetWrap):
+    signals = ['click']
+
+    def __init__(self, view, post):
+        # TODO: calculate time since post creation
+        # TODO: add markup to text for username, subreddit, etc.
+        self.post_content = urwid.AttrMap(FixedButton(
+            post.title + '\n' + 'submitted x hours ago by {} to r/{}'.format(post.author.name, post.subreddit) +
+            '\n' + '{} comments'.format(post.num_comments) + '\n'), None, focus_map='reversed')
+        # self.height = self.post_content.rows() - 1
+        self.left_bar = None
+        # TODO: change score so large numbers are reduced, e.g. 123456 -> 123.5k
+        self.left_col = urwid.Text(('{}'.format(post.score)), align='center')
+        super().__init__(urwid.Columns([]))
+        super().__init__(urwid.Columns([('fixed', 7, self.left_col), self.post_content]))
+        urwid.connect_signal(self, 'click', self.switch_to_post_view, user_args=[view, post])
+
+    def keypress(self, size, key):
+        if self._command_map[key] != urwid.ACTIVATE:
+            return key
+        self._emit('click')
+
+    def switch_to_post_view(self, view, post, button):
+        post_view = PostView(view, post)
+        view.controller.redraw_screen(urwid.Frame(post_view, footer=view.post_footer))
+
+
+class PostBody:
+    def __init__(self, view, post_generator):
+        self.post_list = []
+        for p in post_generator:
+            # TODO: calculate time since post creation
+            post = Post(view, p)
+            self.post_list.append(post)
+
+
+class PostView(urwid.ListBox):
+    def __init__(self, view, post):
+        self.view = view
+        post_widget_body = []
+        post_body = self.view.model.get_post_content(post)
+        if post_body['selftext']:
+            post_widget_body.append(urwid.Text(post_body['selftext']))
+        else:
+            post_widget_body.append(urwid.Text(post_body['url']))
+        super().__init__(urwid.SimpleFocusListWalker(post_widget_body))
+
+    def keypress(self, size, key):
+        if key == 'b':
+            self.view.controller.redraw_screen(self.view.frame)
+        return super().keypress(size, key)
+
+    # TODO: comment ui
 
 
 class Header:
@@ -112,6 +170,7 @@ class Header:
         self.header_content = [urwid.Text(title_markup), urwid.Divider(), self.tab_menu, urwid.Divider()]
 
     def generate_tabs(self):
+        # TODO: add tab for switching time period for tab
         self.tab_content = urwid.Columns([], dividechars=1)
         for tab_name in self.tab_list:
             tab = FixedButton(tab_name)

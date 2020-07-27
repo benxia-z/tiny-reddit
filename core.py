@@ -9,17 +9,22 @@ class Controller:
     """The controller sets up the model/view and runs the application."""
 
     def __init__(self):
-        # TODO: themes?
+        # TODO: themes
         self.loop = None
         self.reddit_instance = get_reddit_instance()
         self.model = Model(self)
         self.view = View(self)
 
     def login(self):
+        # initialize authentication process and get a user-specific reddit instance
         self.reddit_instance = get_reddit_instance(read_only=False)
         self.model.reddit_instance = self.reddit_instance
 
+    def log_off(self):
+        pass
+
     def redraw_screen(self, w):
+        # assign the screen to a new widget
         self.loop.widget = w
 
     def show_popup(self):
@@ -29,8 +34,8 @@ class Controller:
     def close_popup(self):
         pass
 
-    def log_off(self):
-        pass
+    def change_subreddits(self, subreddit):
+        self.model.post_iterator = self.reddit_instance.subreddit(subreddit)
 
     def main(self):
         palette = [
