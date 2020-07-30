@@ -11,6 +11,7 @@ class Controller:
     def __init__(self):
         # TODO: themes
         self.loop = None
+        self.screen = urwid.raw_display.Screen()
         self.reddit_instance = get_reddit_instance()
         self.model = Model(self)
         self.view = View(self)
@@ -45,10 +46,12 @@ class Controller:
             ('reversed', 'standout', '')
         ]
 
-        self.loop = urwid.MainLoop(self.view, palette, unhandled_input=self.view.unhandled_input)
+        self.loop = urwid.MainLoop(self.view, palette, self.screen)
         self.loop.run()
 
+
 if __name__ == "__main__":
+    # add commandline arguments
     controller = Controller()
     controller.main()
 
